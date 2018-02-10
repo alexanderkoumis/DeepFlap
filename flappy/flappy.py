@@ -10,7 +10,7 @@ from pygame.locals import *
 
 
 
-FPS = 30
+FPS = 300
 SCREENWIDTH  = 288
 SCREENHEIGHT = 512
 

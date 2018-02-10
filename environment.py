@@ -37,18 +37,21 @@ class FlappyEnv(object):
 
         # Pass 'IDLE' for first N-1 frames
         images = []
+        score_total = 0
         for _ in range(self.frames_in_state-1):
-            image, score, dead = self._step('IDLE')
+            image, score_frame, dead = self._step('IDLE')
             images.append(self.process_image(image))
+            score_total += score_frame
 
         # Pass action for last frame
-        image, score, dead = self._step(action)
+        image, score_frame, dead = self._step(action)
         images.append(self.process_image(image))
+        score_total += score_frame
 
         images = np.dstack(images)
         # show_image(self.process_image(image, True))
 
-        return images, score, dead
+        return images, score_total, dead
 
     def process_image(self, image, human_viewable=False):
 
