@@ -51,7 +51,7 @@ class FlappyEnv(object):
         images = np.dstack(images)
         # show_image(self.process_image(image, True))
 
-        return images, score_total, dead
+        return images, score_total, int(dead)
 
     def process_image(self, image, human_viewable=False):
 
@@ -60,9 +60,11 @@ class FlappyEnv(object):
             image = np.transpose(image[...,::-1], (1, 0, 2))
 
         # Convert to grayscale
-        image = image.dot([0.298, 0.587, 0.114]).astype('uint8')
+        image = image.dot([0.298, 0.587, 0.114])
 
-        return skimage.transform.resize(image, self.image_dims)
+        image_scaled = skimage.transform.resize(image, self.image_dims)
+
+        return image_scaled.astype('uint8')
 
 
 def main():

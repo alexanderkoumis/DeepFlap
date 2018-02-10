@@ -5,7 +5,8 @@
 import random
 import numpy as np
 
-class Experience:
+
+class Experience(object):
 
     def __init__(self, state_curr, action, reward, state_next, dead):
         self.state_curr = state_curr
@@ -14,41 +15,71 @@ class Experience:
         self.reward = reward
         self.terminal = dead
 
-class Memories:
+
+class Memories(object):
 
     def __init__(self, size):
         self.buffer = []
         self.size = size
 
-    def clean(self):
-        self.buffer = []
+        self.buffer_init = False
+        self.buffer_items = 0
+        self.buffer_idx = 0
+
+        self.buffer_state_curr = None
+        self.buffer_action = None
+        self.buffer_reward = None
+        self.buffer_state_next = None
+        self.buffer_dead = None
+
+    def init_buffers(self, state_shape):
+
+        state_rows, state_cols, state_depth = state_shape
+        state_size = (self.size, state_rows, state_cols, state_depth)
+        int_size = self.size
+
+        self.buffer_state_curr = np.zeros(state_size, dtype='uint8')
+        self.buffer_action = np.zeros(int_size, dtype='uint8')
+        self.buffer_reward = np.zeros(int_size, dtype='uint8')
+        self.buffer_state_next = np.zeros(state_size, dtype='uint8')
+        self.buffer_dead = np.zeros(int_size, dtype='uint8')
+
+        self.buffer_init = True
+        self.buffer_idx = 0
 
     def add(self, state_curr, action, reward, state_next, dead):
-        exp = Experience(state_curr, action, reward, state_next, dead)
-        self.buffer.append(exp)
-        if len(self.buffer) > self.size:
-            del(self.buffer[0])
 
-    def get_batch(self, size):
-        batch = None
-        if size > len(self.buffer):
-            batch = self.buffer
-        else:  
-            batch = random.sample(self.buffer, size)
-        
-        e = Experience([],[],[],[],[])
-        
-        for experience in batch:
-            e.state_curr.append(experience.state_curr)
-            e.action.append(experience.action)
-            e.reward.append(experience.reward)
-            e.state_next.append(experience.state_next)
-            e.terminal.append(experience.terminal)
-        
-        e.state_curr = np.array(e.state_curr)
-        e.action     = np.array(e.action)
-        e.reward     = np.array(e.reward)
-        e.state_next = np.array(e.state_next)
-        e.terminal   = np.array(e.terminal)
-        
-        return e
+        if not self.buffer_init:
+            self.init_buffers(state_curr.shape)
+
+        self.buffer_state_curr[self.buffer_idx] = state_curr
+        self.buffer_action[self.buffer_idx] = action
+        self.buffer_reward[self.buffer_idx] = reward
+        self.buffer_state_next[self.buffer_idx] = state_next
+        self.buffer_dead[self.buffer_idx] = dead
+
+        # Ring buffer
+        self.buffer_idx = (self.buffer_idx + 1) % self.size
+
+    def get_batch(self, batch_size):
+
+        if batch_size > self.buffer_idx:
+            exp = Experience(
+                self.buffer_state_curr[0:self.buffer_idx],
+                self.buffer_action[0:self.buffer_idx],
+                self.buffer_reward[0:self.buffer_idx],
+                self.buffer_state_next[0:self.buffer_idx],
+                self.buffer_dead[0:self.buffer_idx]
+            )
+
+        else:
+            rand_idxs = np.random.choice(self.buffer_idx, batch_size, replace=False)
+            exp = Experience(
+                self.buffer_state_curr[rand_idxs],
+                self.buffer_action[rand_idxs],
+                self.buffer_reward[rand_idxs],
+                self.buffer_state_next[rand_idxs],
+                self.buffer_dead[rand_idxs]
+            )
+
+        return exp
