@@ -21,6 +21,7 @@ class FlappyEnv(object):
             int(flappy.SCREENHEIGHT / image_scale),
             int(flappy.SCREENWIDTH / image_scale)
         )
+        self.reset()
 
     def state_size(self):
         rows, cols = self.image_dims
@@ -50,6 +51,9 @@ class FlappyEnv(object):
 
         images = np.dstack(images)
         # show_image(self.process_image(image, True))
+
+        if dead:
+            self.reset()
 
         return images, score_total, int(dead)
 

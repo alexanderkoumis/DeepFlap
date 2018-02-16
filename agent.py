@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+from time import time
 
 import numpy as np
 import matplotlib
@@ -20,18 +21,21 @@ class Trainer(object):
         # Training hyper parameters
         self.epochs = 100
         self.episodes = 100
-        self.batch_size = 10000
+        self.batch_size = 128
 
         # Reinforcement Learning Hyperparameteres
-        self.gamma = 0.95
-        self.epsilon = 1.0
-        self.anneal = 100000
+        self.gamma = 0.97
+        self.epsilon_initial = 1.0
+        self.epsilon_final = 0.0
+        self.anneal_frames = 100000
+        self.observe_frames = 1000
+        self.total_frames = 200000
 
         # Memory hyperparameters
-        self.exp_size = 1000000
+        self.exp_size = 100000
         self.learning_rate = 0.001
 
-        # Generate the memory and environment 
+        # Generate the memory and environment
         self.memory = Memories(self.exp_size)
         self.env = FlappyEnv()
 
@@ -46,15 +50,13 @@ class Trainer(object):
         return os.path.join(self.save_path, filename)
 
 
-    def _ep_greedy(self, state):
+    def _ep_greedy(self, state, epsilon):
         """Defines the epsilon greedy policy
         We explore the state space is epsilon greedy exploration
         and we anneal the epsilon value from 1 to 0.1
         """
-        self.epsilon = max(0.1, self.epsilon - 1/self.anneal)
-
         # we may choose to anneal epislon here
-        if np.random.random_sample() <= self.epsilon:
+        if np.random.random_sample() <= epsilon:
             return np.random.randint(len(self.env.action_space))
         else:
             a = self.network.evaluate(np.array([state]))
@@ -63,89 +65,64 @@ class Trainer(object):
 
     def train(self):
 
-        loss_list = []
-        all_reward = np.zeros((self.epochs, self.episodes))
 
-        for epoch in range(self.epochs):
-            print('\nEPOCH:', epoch)
-            print('Epsilon:', self.epsilon)
-            loss_list_epoch = []
+        state_curr = self.env.peak()
+        epsilon = self.epsilon_initial
 
-            # Explore the state space
-            for episode in range(self.episodes):
-                print('Episode:', episode, end='', flush=True)
+        for frame_num in range(self.total_frames):
 
-                dead = False
-                loss_list_episode = []
-                self.env.reset()
+            dead = False
 
-                state_curr = self.env.peak()
-                alist = []
+            action_idx = self._ep_greedy(state_curr, epsilon)
+            action = self.env.action_space[action_idx]
 
-                while not dead:
+            state_next, reward, dead = self.env.step(action)
 
-                    action_idx = self._ep_greedy(state_curr)
-                    action = self.env.action_space[action_idx]
-                    alist.append(action)
+            self.memory.add(state_curr, action_idx, reward, state_next, dead)
+            state_curr = state_next
 
-                    state_next, reward, dead = self.env.step(action)
-                    all_reward[epoch, episode] += reward
+            print('Frame num: {}, epsilon: {}'.format(frame_num, epsilon))
 
-                    self.memory.add(state_curr, action_idx, reward, state_next, dead)
-                    state_curr = state_next
+            if frame_num >= self.observe_frames and epsilon > self.epsilon_final:
+                epsilon -= (self.epsilon_initial - self.epsilon_final)/self.anneal_frames
 
-                    # Update the Q function
-                    minibatch = self.memory.get_batch(self.batch_size)
-                    local_size = minibatch.reward.shape[0]
+                # Update the Q function
+                minibatch = self.memory.get_batch(self.batch_size)
+                local_size = minibatch.reward.shape[0]
 
-                    # Calculate old predictions for the next state
-                    Q_target = self.network.evaluate(minibatch.state_next)
-                    # Find the max value of the over the actions
-                    Q_target = np.max(Q_target, axis=1)
-                    # Apply the discount factor
-                    Q_target *= self.gamma
-                    # Hadamard product with the terminal state info,
-                    # so we don't consider termination states
-                    Q_target *= minibatch.terminal
-                    # Update the old predictions with the new Reward
-                    Q_target += minibatch.reward
+                # Calculate old predictions for the next state
+                Q_target = self.network.evaluate(minibatch.state_next)
+                # Find the max value of the over the actions
+                Q_target = np.max(Q_target, axis=1)
+                # Apply the discount factor
+                Q_target *= self.gamma
+                # Hadamard product with the terminal state info,
+                # so we don't consider termination states
+                Q_target *= minibatch.terminal
+                # Update the old predictions with the new Reward
+                Q_target += minibatch.reward
 
-                    # Calculate the old predictions of the state
-                    # and remove the ones we are gonna replace
-                    Y = self.network.evaluate(minibatch.state_curr)
-                    Y[np.arange(local_size), minibatch.action] = 0
-                    # Create the one-hot action matrix
-                    A = np.zeros((local_size, len(self.env.action_space)))
-                    A[np.arange(local_size), minibatch.action] = 1
-                    # Expand the Q_targets with the help of the one-hot action
-                    Q_target = Q_target.reshape((local_size, 1))
-                    Q_target = np.multiply(Q_target, A)
-                    # Finally create the expected target Q values
-                    Y += Q_target
+                # Calculate the old predictions of the state
+                # and remove the ones we are gonna replace
+                Y = self.network.evaluate(minibatch.state_curr)
 
-                    # Calculate loss and optimize
-                    loss_list_episode.append(self.network.error(minibatch.state_curr, Y))
-                    self.network.train(minibatch.state_curr, Y)
 
-                loss_list_epoch += loss_list_episode
-                print(' -> Reward:', all_reward[epoch,episode], end=' ', flush=True)
-                print('Loss: ', np.average(loss_list_episode))
+                Y[np.arange(local_size), minibatch.action] = 0
+                # Create the one-hot action matrix
+                A = np.zeros((local_size, len(self.env.action_space)))
+                A[np.arange(local_size), minibatch.action] = 1
+                # Expand the Q_targets with the help of the one-hot action
+                Q_target = Q_target.reshape((local_size, 1))
+                Q_target = np.multiply(Q_target, A)
+                # Finally create the expected target Q values
+                Y += Q_target
 
-            all_reward[epoch] = all_reward[epoch]/100
-            print('Total Accumulated Reward: {}'.format(np.sum(all_reward[epoch])))
-            loss_list += loss_list_epoch
-            print('Average Mean-Squared Error: {}'.format(np.average(loss_list_epoch)))
-
-        plt.clf()
-        plt.plot(loss_list)
-        plt.savefig(self._test_file('loss.png'))
-
-        plt.clf()
-        plt.plot(np.sum(all_reward, axis=1))
-        plt.savefig(self._test_file('reward.png'))
+                # Calculate loss and optimize
+                self.network.error(minibatch.state_curr, Y)
+                self.network.train(minibatch.state_curr, Y)
 
         # Evaluate one last time but this time with no epsilon greedy
-        self.epsilon = 0.0
+        epsilon = 0.0
         reward = 0
         solved = 0
         self.episodes *= 100
@@ -158,7 +135,7 @@ class Trainer(object):
             state_curr = self.env.peak()
 
             while not dead:
-                action = self._ep_greedy(state_curr)
+                action = self._ep_greedy(state_curr, epsilon)
                 state_next, reward_, dead = self.env.step(action)
                 reward += reward_
                 state_curr = state_next
