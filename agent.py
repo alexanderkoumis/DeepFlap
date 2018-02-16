@@ -81,7 +81,7 @@ class Trainer(object):
             self.memory.add(state_curr, action_idx, reward, state_next, dead)
             state_curr = state_next
 
-            print('Frame num: {}, epsilon: {}'.format(frame_num, epsilon))
+            print('Frame num: {}, epsilon: {}, reward: {}'.format(frame_num, epsilon, reward))
 
             if frame_num >= self.observe_frames and epsilon > self.epsilon_final:
                 epsilon -= (self.epsilon_initial - self.epsilon_final)/self.anneal_frames
@@ -98,7 +98,7 @@ class Trainer(object):
                 Q_target *= self.gamma
                 # Hadamard product with the terminal state info,
                 # so we don't consider termination states
-                Q_target *= minibatch.terminal
+                Q_target *= (1 - minibatch.terminal)
                 # Update the old predictions with the new Reward
                 Q_target += minibatch.reward
 
