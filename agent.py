@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 from time import time
 
@@ -142,11 +143,22 @@ class Trainer(object):
             state_curr, reward, alive = self.env.step(action)
 
 
-def main():
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--evaluate', action='store_true')
+    return parser.parse_args()
+
+
+def main(args):
+
     trainer = Trainer()
-    trainer.train()
-    # trainer.evaluate()
+
+    if args.evaluate:
+        # You must train before evaluating
+        trainer.evaluate()
+    else:
+        trainer.train()
 
 
 if __name__ == '__main__':
-    main()
+    main(parse_args())
