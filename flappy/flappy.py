@@ -10,7 +10,7 @@ from pygame.locals import *
 
 
 
-FPS = 300
+FPS = 100
 SCREENWIDTH  = 288
 SCREENHEIGHT = 512
 
@@ -69,7 +69,7 @@ except NameError:
     xrange = range
 
 
-def main():
+def main(reward):
     global SCREEN, FPSCLOCK
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
@@ -147,7 +147,7 @@ def main():
 
     movementInfo = showWelcomeAnimation()
 
-    return mainGame(movementInfo)
+    return mainGame(movementInfo, reward)
 
 
 
@@ -180,7 +180,7 @@ def showWelcomeAnimation():
     }
 
 
-def mainGame(movementInfo):
+def mainGame(movementInfo, reward):
     global score, NEXT_FRAME, GAME_OVER, loopIter, playerIndex, playerIndexGen, playery, playerx, \
            basex, baseShift, newPipe1, newPipe2, upperPipes, lowerPipes, pipeVelX, playerVelY, \
            playerMinVelY, playerAccY, playerRot, playerVelRot, playerRotThr, playerFlapAcc, playerFlapped
@@ -242,15 +242,14 @@ def mainGame(movementInfo):
                                upperPipes, lowerPipes)
 
         if crashTest[0]:
-            reward = 0
-            done = True
-            return pygame.surfarray.array3d(pygame.display.get_surface()), reward, done
+            reward_ = 0
+            alive = False
+            return pygame.surfarray.array3d(pygame.display.get_surface()), reward_, alive
 
         # check for score
-        playerMidPos = playerx + IMAGES['player'][0].get_width() / 2
         for pipe in upperPipes:
-            pipeMidPos = pipe['x'] + IMAGES['pipe'][0].get_width() / 2
-            if pipeMidPos <= playerMidPos < pipeMidPos + 4:
+            pipeEndPos = pipe['x'] + IMAGES['pipe'][0].get_width()
+            if pipeEndPos <= playerx < pipeEndPos + 4:
                 scored = True
                 score += 1
                 SOUNDS['point'].play()
@@ -315,9 +314,9 @@ def mainGame(movementInfo):
         pygame.display.update()
         FPSCLOCK.tick(FPS)
 
-        reward = 100 if scored else 0
-        done = False
-        return pygame.surfarray.array3d(pygame.display.get_surface()), reward, done
+        reward_ = reward if scored else 0
+        alive = True
+        return pygame.surfarray.array3d(pygame.display.get_surface()), reward_, alive
 
     return step
 

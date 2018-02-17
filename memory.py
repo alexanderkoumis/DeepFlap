@@ -8,12 +8,12 @@ import numpy as np
 
 class Experience(object):
 
-    def __init__(self, state_curr, action, reward, state_next, dead):
+    def __init__(self, state_curr, action, reward, state_next, alive):
         self.state_curr = state_curr
         self.action = action
         self.state_next = state_next
         self.reward = reward
-        self.terminal = dead
+        self.terminal = alive
 
 
 class Memories(object):
@@ -30,7 +30,7 @@ class Memories(object):
         self.buffer_action = None
         self.buffer_reward = None
         self.buffer_state_next = None
-        self.buffer_dead = None
+        self.buffer_alive = None
 
     def init_buffers(self, state_shape):
 
@@ -42,12 +42,12 @@ class Memories(object):
         self.buffer_action = np.zeros(int_size, dtype='uint8')
         self.buffer_reward = np.zeros(int_size, dtype='uint8')
         self.buffer_state_next = np.zeros(state_size, dtype='uint8')
-        self.buffer_dead = np.zeros(int_size, dtype='uint8')
+        self.buffer_alive = np.zeros(int_size, dtype='uint8')
 
         self.buffer_init = True
         self.buffer_idx = 0
 
-    def add(self, state_curr, action, reward, state_next, dead):
+    def add(self, state_curr, action, reward, state_next, alive):
 
         if not self.buffer_init:
             self.init_buffers(state_curr.shape)
@@ -56,7 +56,7 @@ class Memories(object):
         self.buffer_action[self.buffer_idx] = action
         self.buffer_reward[self.buffer_idx] = reward
         self.buffer_state_next[self.buffer_idx] = state_next
-        self.buffer_dead[self.buffer_idx] = dead
+        self.buffer_alive[self.buffer_idx] = alive
 
         # Ring buffer
         self.buffer_items = min(self.buffer_items + 1, self.size)
@@ -80,7 +80,7 @@ class Memories(object):
                 self.buffer_action[rand_idxs],
                 self.buffer_reward[rand_idxs],
                 self.buffer_state_next[rand_idxs],
-                self.buffer_dead[rand_idxs]
+                self.buffer_alive[rand_idxs]
             )
 
         return exp

@@ -43,7 +43,7 @@ class Network(object):
             activation=tf.nn.relu
         )
 
-        conv_2_flat = tf.contrib.layers.flatten(conv_2)
+        conv_2_flat = tf.layers.flatten(conv_2)
 
         # Third hidden layer
         dense_3 = tf.layers.dense(inputs=conv_2_flat, units=256, activation=tf.nn.relu)

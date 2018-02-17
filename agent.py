@@ -24,20 +24,21 @@ class Trainer(object):
         self.batch_size = 128
 
         # Reinforcement Learning Hyperparameteres
-        self.gamma = 0.97
+        self.gamma = 0.98
         self.epsilon_initial = 1.0
         self.epsilon_final = 0.0
-        self.anneal_frames = 100000
+        self.anneal_frames = 10000
         self.observe_frames = 1000
-        self.total_frames = 200000
+        self.total_frames = 20000
+        self.reward = 500
 
         # Memory hyperparameters
-        self.exp_size = 100000
+        self.exp_size = 5000
         self.learning_rate = 0.001
 
         # Generate the memory and environment
         self.memory = Memories(self.exp_size)
-        self.env = FlappyEnv()
+        self.env = FlappyEnv(self.reward)
 
         # Generate the model from the hyperparams
         self.network = Network(self.env.state_size())
@@ -68,23 +69,24 @@ class Trainer(object):
 
         state_curr = self.env.peak()
         epsilon = self.epsilon_initial
+        epsilon_step = (self.epsilon_initial - self.epsilon_final) / self.anneal_frames
 
         for frame_num in range(self.total_frames):
-
-            dead = False
 
             action_idx = self._ep_greedy(state_curr, epsilon)
             action = self.env.action_space[action_idx]
 
-            state_next, reward, dead = self.env.step(action)
+            state_next, reward, alive = self.env.step(action)
 
-            self.memory.add(state_curr, action_idx, reward, state_next, dead)
+            self.memory.add(state_curr, action_idx, reward, state_next, alive)
             state_curr = state_next
 
             print('Frame num: {}, epsilon: {}, reward: {}'.format(frame_num, epsilon, reward))
 
-            if frame_num >= self.observe_frames and epsilon > self.epsilon_final:
-                epsilon -= (self.epsilon_initial - self.epsilon_final)/self.anneal_frames
+            if frame_num >= self.observe_frames:
+
+                if epsilon > self.epsilon_final:
+                    epsilon -= epsilon_step
 
                 # Update the Q function
                 minibatch = self.memory.get_batch(self.batch_size)
@@ -98,14 +100,13 @@ class Trainer(object):
                 Q_target *= self.gamma
                 # Hadamard product with the terminal state info,
                 # so we don't consider termination states
-                Q_target *= (1 - minibatch.terminal)
+                Q_target *= minibatch.terminal
                 # Update the old predictions with the new Reward
                 Q_target += minibatch.reward
 
                 # Calculate the old predictions of the state
                 # and remove the ones we are gonna replace
                 Y = self.network.evaluate(minibatch.state_curr)
-
 
                 Y[np.arange(local_size), minibatch.action] = 0
                 # Create the one-hot action matrix
@@ -130,13 +131,13 @@ class Trainer(object):
         print('\n\nFINAL TEST RESULTS:')
         for episode in range(self.episodes):
 
-            dead = False
+            alive = True
             self.env.reset()
             state_curr = self.env.peak()
 
-            while not dead:
+            while alive:
                 action = self._ep_greedy(state_curr, epsilon)
-                state_next, reward_, dead = self.env.step(action)
+                state_next, reward_, alive = self.env.step(action)
                 reward += reward_
                 state_curr = state_next
 
