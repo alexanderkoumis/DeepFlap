@@ -8,7 +8,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from network import NETWORK_HYPERPARAMS, Network
+from network import Network
 from environment import FlappyEnv
 from memory import Memories
 
@@ -27,9 +27,9 @@ class Trainer(object):
         self.gamma = 0.98
         self.epsilon_initial = 1.0
         self.epsilon_final = 0.0
-        self.anneal_frames = 10000
+        self.anneal_frames = 100000
         self.observe_frames = 1000
-        self.total_frames = 20000
+        self.total_frames = 200000
         self.reward = 500
 
         # Memory hyperparameters
@@ -122,38 +122,30 @@ class Trainer(object):
                 self.network.error(minibatch.state_curr, Y)
                 self.network.train(minibatch.state_curr, Y)
 
-        # Evaluate one last time but this time with no epsilon greedy
-        epsilon = 0.0
-        reward = 0
-        solved = 0
-        self.episodes *= 100
-
-        print('\n\nFINAL TEST RESULTS:')
-        for episode in range(self.episodes):
-
-            alive = True
-            self.env.reset()
-            state_curr = self.env.peak()
-
-            while alive:
-                action = self._ep_greedy(state_curr, epsilon)
-                state_next, reward_, alive = self.env.step(action)
-                reward += reward_
-                state_curr = state_next
-
-        print('Solution Percentage: ({}/{}) = {}'.format(
-            solved, self.episodes, solved/self.episodes))
-        print('Total Reward: {}'.format(reward))
+        print('Final test (0 epsilon)')
+        self.evaluate(load=False)
 
         print('\n\nS A V I N G   M O D E L ')
         self.network.save(self.save_path)
 
-        print('Network has been save to directory: {}'.format(self.save_path))
+    def evaluate(self, load=True):
+
+        if load:
+            self.network.restore(self.save_path)
+
+        self.env.reset()
+        state_curr = self.env.peak()
+
+        for frame_num in range(10000):
+            action_idx = self._ep_greedy(state_curr, 0.0)
+            action = self.env.action_space[action_idx]
+            state_curr, reward, alive = self.env.step(action)
 
 
 def main():
     trainer = Trainer()
     trainer.train()
+    # trainer.evaluate()
 
 
 if __name__ == '__main__':

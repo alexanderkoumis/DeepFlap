@@ -3,22 +3,17 @@ import json
 import tensorflow as tf
 
 
-
 tf.logging.set_verbosity(tf.logging.INFO)
-
-
-NETWORK_HYPERPARAMS = {}
 
 
 class Network(object):
 
-
+    SAVE_FILE = 'model.ckpt'
 
     def __init__(self, input_size, learning_rate=0.001):
 
         rows, cols, depth = input_size
 
-        # self.input_layer = tf.placeholder(tf.uint8,
         self.input_layer = tf.placeholder(tf.float32,
             shape=[None, rows, cols, depth],
             name='Network_Input')
@@ -77,14 +72,12 @@ class Network(object):
 
 
     def save(self, path):
-
-        save_path_model = self.saver.save(self.sess, os.path.join(path, 'model.ckpt'))
+        save_file_full = os.path.join(path, self.SAVE_FILE)
+        save_path_model = self.saver.save(self.sess, save_file_full)
         print('Model saved in file: {}'.format(save_path_model))
 
-        # save_path_hyperparameters = os.path.join(path, 'hyperparams.json')
-        # with open(save_path_hyperparameters, 'w') as outfile:
-        #     outfile.write(json.dumps(self.params, indent=4))
-        # print('Model Hyperparameters saved in file: {}'.format(save_path_hyperparameters))
 
-        return path
-
+    def restore(self, path):
+        save_file_full = os.path.join(path, self.SAVE_FILE)
+        self.saver.restore(self.sess, save_file_full)
+        print('Restored {}'.format(save_file_full))
