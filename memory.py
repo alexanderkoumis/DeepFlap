@@ -59,21 +59,22 @@ class Memories(object):
         self.buffer_dead[self.buffer_idx] = dead
 
         # Ring buffer
+        self.buffer_items = min(self.buffer_items + 1, self.size)
         self.buffer_idx = (self.buffer_idx + 1) % self.size
 
     def get_batch(self, batch_size):
 
-        if batch_size > self.buffer_idx:
+        if batch_size > self.buffer_items:
             exp = Experience(
-                self.buffer_state_curr[0:self.buffer_idx],
-                self.buffer_action[0:self.buffer_idx],
-                self.buffer_reward[0:self.buffer_idx],
-                self.buffer_state_next[0:self.buffer_idx],
-                self.buffer_dead[0:self.buffer_idx]
+                self.buffer_state_curr[0:self.buffer_items],
+                self.buffer_action[0:self.buffer_items],
+                self.buffer_reward[0:self.buffer_items],
+                self.buffer_state_next[0:self.buffer_items],
+                self.buffer_dead[0:self.buffer_items]
             )
 
         else:
-            rand_idxs = np.random.choice(self.buffer_idx, batch_size, replace=False)
+            rand_idxs = np.random.choice(self.buffer_items, batch_size, replace=False)
             exp = Experience(
                 self.buffer_state_curr[rand_idxs],
                 self.buffer_action[rand_idxs],
