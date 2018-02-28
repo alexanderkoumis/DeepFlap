@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/ubuntu/Development/deepflap/testing/model.ckpt"
+all_model_checkpoint_paths: "/home/ubuntu/Development/deepflap/testing/model.ckpt"
